@@ -1,150 +1,34 @@
 from tkinter import *
-from tkinter import messagebox
 
 from logica import *
-from dados import transacoes
 
 # ================= CORES =================
 
 preto = "#121212"
-verde = "#2ecc71"
-vermelho = "#e74c3c"
-amarelo = "#f1c40f"
 branco = "#ffffff"
-
-# ================= FUNÇÕES =================
-
-def tela_dashboard(nome_usuario):
-
-    frame_login.pack_forget()
-
-    lbl_usuario.config(
-        text=f"👤 Usuário: {nome_usuario}"
-    )
-
-    atualizar_lista()
-
-    frame_dashboard.pack(fill=BOTH, expand=True)
-
-
-def login():
-
-    email = entry_email.get()
-    senha = entry_senha.get()
-
-    ok, resposta = fazer_login(email, senha)
-
-    if ok:
-
-        tela_dashboard(resposta)
-
-    else:
-
-        msg_login.config(
-            text=resposta,
-            fg=vermelho
-        )
-
-
-def cadastrar():
-
-    ok, resposta = cadastrar_usuario(
-        entry_nome.get(),
-        entry_email_cad.get(),
-        entry_senha_cad.get()
-    )
-
-    msg_cadastro.config(
-        text=resposta,
-        fg=verde if ok else vermelho
-    )
-
-
-def adicionar(tipo):
-
-    ok, msg = adicionar_transacao(
-        tipo,
-        entry_valor.get(),
-        entry_desc.get()
-    )
-
-    if ok:
-
-        entry_desc.delete(0, END)
-        entry_valor.delete(0, END)
-
-        atualizar_lista()
-
-    else:
-
-        messagebox.showerror("Erro", msg)
-
-
-def atualizar_lista():
-
-    lista.delete(0, END)
-
-    for t in transacoes:
-
-        data = t["data"].strftime("%d/%m %H:%M")
-
-        lista.insert(
-            END,
-            f"{data} | {t['tipo']} | {t['desc']} | R$ {t['valor']:.2f}"
-        )
-
-    receitas, despesas, saldo = calcular_saldo()
-
-    lbl_saldo.config(
-        text=f"Saldo: R$ {saldo:.2f}",
-        fg=verde if saldo >= 0 else vermelho
-    )
-
-
-def excluir():
-
-    try:
-
-        indice = lista.curselection()[0]
-
-        if excluir_transacao(indice):
-            atualizar_lista()
-
-    except:
-
-        messagebox.showwarning(
-            "Aviso",
-            "Selecione uma transação"
-        )
-
-
-def recuperar():
-
-    if recuperar_transacao():
-
-        atualizar_lista()
-
-    else:
-
-        messagebox.showinfo(
-            "Recuperar",
-            "Nada para recuperar"
-        )
-
+verde = "#22c55e"
+vermelho = "#ef4444"
+amarelo = "#facc15"
+azul = "#3b82f6"
+cinza = "#1f2937"
+laranja = "#f97316"
 
 # ================= JANELA =================
 
 janela = Tk()
 
-janela.title("Controle Financeiro")
+janela.title("Sistema Financeiro")
+
+janela.geometry("1100x750")
 
 janela.config(bg=preto)
 
-janela.state("zoomed")
-
 # ================= LOGIN =================
 
-frame_login = Frame(janela, bg=preto)
+frame_login = Frame(
+    janela,
+    bg=preto
+)
 
 frame_login.pack(expand=True)
 
@@ -153,7 +37,7 @@ Label(
     text="💰 Controle Financeiro",
     bg=preto,
     fg=verde,
-    font=("Arial", 24, "bold")
+    font=("Arial",24,"bold")
 ).pack(pady=20)
 
 Label(
@@ -163,7 +47,10 @@ Label(
     fg=branco
 ).pack()
 
-entry_email = Entry(frame_login, width=40)
+entry_email = Entry(
+    frame_login,
+    width=40
+)
 
 entry_email.pack(pady=5)
 
@@ -186,9 +73,28 @@ Button(
     frame_login,
     text="Entrar",
     bg=verde,
-    width=20,
+    fg=preto,
+    width=25,
     command=login
 ).pack(pady=10)
+
+Button(
+    frame_login,
+    text="Criar Conta",
+    bg=amarelo,
+    fg=preto,
+    width=25,
+    command=mostrar_cadastro
+).pack(pady=5)
+
+Button(
+    frame_login,
+    text="Excluir Conta",
+    bg=vermelho,
+    fg=branco,
+    width=25,
+    command=excluir_conta
+).pack(pady=5)
 
 msg_login = Label(
     frame_login,
@@ -200,39 +106,80 @@ msg_login.pack()
 
 # ================= CADASTRO =================
 
+frame_cadastro = Frame(
+    janela,
+    bg=preto
+)
+
 Label(
-    frame_login,
+    frame_cadastro,
     text="Criar Conta",
     bg=preto,
     fg=amarelo,
-    font=("Arial", 14, "bold")
-).pack(pady=10)
+    font=("Arial",22,"bold")
+).pack(pady=20)
 
-entry_nome = Entry(frame_login, width=40)
+Label(
+    frame_cadastro,
+    text="Nome",
+    bg=preto,
+    fg=branco
+).pack()
 
-entry_nome.pack(pady=3)
+entry_nome = Entry(
+    frame_cadastro,
+    width=40
+)
 
-entry_email_cad = Entry(frame_login, width=40)
+entry_nome.pack()
 
-entry_email_cad.pack(pady=3)
+Label(
+    frame_cadastro,
+    text="Email",
+    bg=preto,
+    fg=branco
+).pack()
+
+entry_email_cad = Entry(
+    frame_cadastro,
+    width=40
+)
+
+entry_email_cad.pack()
+
+Label(
+    frame_cadastro,
+    text="Senha",
+    bg=preto,
+    fg=branco
+).pack()
 
 entry_senha_cad = Entry(
-    frame_login,
+    frame_cadastro,
     width=40,
     show="*"
 )
 
-entry_senha_cad.pack(pady=3)
+entry_senha_cad.pack()
 
 Button(
-    frame_login,
-    text="Cadastrar",
+    frame_cadastro,
+    text="Salvar Cadastro",
     bg=amarelo,
+    fg=preto,
+    width=25,
     command=cadastrar
 ).pack(pady=10)
 
+Button(
+    frame_cadastro,
+    text="Voltar",
+    width=25,
+    command=mostrar_login
+).pack()
+
 msg_cadastro = Label(
-    frame_login,
+    frame_cadastro,
     text="",
     bg=preto
 )
@@ -246,25 +193,27 @@ frame_dashboard = Frame(
     bg=preto
 )
 
-lbl_usuario = Label(
+lbl_boas_vindas = Label(
     frame_dashboard,
     text="",
     bg=preto,
     fg=branco,
-    font=("Arial", 14)
+    font=("Arial",14)
 )
 
-lbl_usuario.pack(pady=10)
+lbl_boas_vindas.pack(pady=10)
 
 lbl_saldo = Label(
     frame_dashboard,
     text="Saldo: R$ 0.00",
     bg=preto,
     fg=verde,
-    font=("Arial", 24, "bold")
+    font=("Arial",24,"bold")
 )
 
-lbl_saldo.pack(pady=10)
+lbl_saldo.pack()
+
+# ================= INPUTS =================
 
 frame_inputs = Frame(
     frame_dashboard,
@@ -273,55 +222,87 @@ frame_inputs = Frame(
 
 frame_inputs.pack(pady=10)
 
+Label(
+    frame_inputs,
+    text="Descrição",
+    bg=preto,
+    fg=branco
+).grid(row=0,column=0)
+
 entry_desc = Entry(
     frame_inputs,
     width=30
 )
 
-entry_desc.grid(row=0, column=0, padx=5)
+entry_desc.grid(row=0,column=1,padx=10)
+
+Label(
+    frame_inputs,
+    text="Valor",
+    bg=preto,
+    fg=branco
+).grid(row=0,column=2)
 
 entry_valor = Entry(
     frame_inputs,
     width=15
 )
 
-entry_valor.grid(row=0, column=1, padx=5)
+entry_valor.grid(row=0,column=3,padx=10)
 
-Button(
-    frame_inputs,
-    text="Receita",
-    bg=verde,
-    command=lambda: adicionar("Receita")
-).grid(row=0, column=2, padx=5)
+# ================= LISTA =================
 
-Button(
-    frame_inputs,
-    text="Despesa",
-    bg=vermelho,
-    command=lambda: adicionar("Despesa")
-).grid(row=0, column=3, padx=5)
-
-lista = Listbox(
+lista_transacoes = Listbox(
     frame_dashboard,
-    width=90,
-    height=15
+    width=110,
+    height=15,
+    bg=cinza,
+    fg=branco,
+    font=("Courier",11)
 )
 
-lista.pack(pady=10)
+lista_transacoes.pack(pady=10)
+
+# ================= BOTÕES =================
+
+frame_botoes = Frame(
+    frame_dashboard,
+    bg=preto
+)
+
+frame_botoes.pack(pady=15)
 
 Button(
-    frame_dashboard,
-    text="Excluir",
+    frame_botoes,
+    text="💰 Receita",
+    bg=verde,
+    width=15,
+    command=lambda: adicionar_transacao("Receita")
+).grid(row=0,column=0,padx=5)
+
+Button(
+    frame_botoes,
+    text="💸 Despesa",
     bg=vermelho,
     fg=branco,
-    command=excluir
-).pack(pady=5)
+    width=15,
+    command=lambda: adicionar_transacao("Despesa")
+).grid(row=0,column=1,padx=5)
+
+Button(
+    frame_botoes,
+    text="🗑 Excluir",
+    bg=laranja,
+    fg=branco,
+    width=15,
+    command=excluir_selecionado
+).grid(row=0,column=2,padx=5)
 
 Button(
     frame_dashboard,
-    text="Recuperar",
-    bg=amarelo,
-    command=recuperar
-).pack(pady=5)
-
-janela.mainloop()
+    text="Sair",
+    bg=cinza,
+    fg=branco,
+    width=20,
+    command=mostrar_login
+).pack(pady=20)
