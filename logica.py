@@ -1,111 +1,342 @@
-from datetime import datetime
-from dados import usuarios, transacoes, lixeira
+from tkinter import *
+from tkinter import messagebox
+
+from datetime import datetime, timedelta
+
+import matplotlib.pyplot as plt
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+from dados import *
+
+# ================= CORES =================
+
+verde = "#22c55e"
+
+vermelho = "#ef4444"
+
+amarelo = "#facc15"
+
+azul = "#3b82f6"
+
+laranja = "#f97316"
+
+branco = "#ffffff"
+
+# ================= LISTA =================
+
+transacoes = []
+
+# ================= CARREGAR =================
+
+def carregar_transacoes():
+
+    transacoes.clear()
+
+    cursor.execute("""
+    SELECT tipo, valor, descricao, data
+    FROM transacoes
+    ORDER BY data DESC
+    """)
+
+    dados = cursor.fetchall()
+
+    for t in dados:
+
+        transacoes.append({
+
+            "tipo": t[0],
+
+            "valor": t[1],
+
+            "desc": t[2],
+
+            "data": datetime.strptime(
+                t[3],
+                "%Y-%m-%d %H:%M:%S"
+            )
+        })
+
+# ================= TELAS =================
+
+def mostrar_cadastro():
+
+    frame_login.pack_forget()
+
+    frame_dashboard.pack_forget()
+
+    frame_cadastro.pack(expand=True)
+
+def mostrar_login():
+
+    frame_dashboard.pack_forget()
+
+    frame_cadastro.pack_forget()
+
+    frame_login.pack(expand=True)
+
+    msg_login.config(text="")
+
+def mostrar_dashboard(nome):
+
+    frame_login.pack_forget()
+
+    frame_cadastro.pack_forget()
+
+    lbl_boas_vindas.config(
+        text=f"👤 Usuário: {nome}"
+    )
+
+    carregar_transacoes()
+
+    atualizar_interface()
+
+    frame_dashboard.pack(
+        fill=BOTH,
+        expand=True
+    )
+
+# ================= CADASTRO =================
+
+def cadastrar():
+
+    nome = entry_nome.get()
+
+    email = entry_email_cad.get()
+
+    senha = entry_senha_cad.get()
+
+    if not nome or not email or not senha:
+
+        msg_cadastro.config(
+            text="❌ Preencha todos os campos",
+            fg=vermelho
+        )
+
+        return
+
+    try:
+
+        cursor.execute("""
+        INSERT INTO usuarios(nome,email,senha)
+        VALUES(?,?,?)
+        """, (nome, email, senha))
+
+        conexao.commit()
+
+        msg_cadastro.config(
+            text="✔ Cadastro realizado",
+            fg=verde
+        )
+
+    except:
+
+        msg_cadastro.config(
+            text="❌ Email já cadastrado",
+            fg=vermelho
+        )
 
 # ================= LOGIN =================
 
-def cadastrar_usuario(nome, email, senha):
+def login():
 
-    if not nome or not email or not senha:
-        return False, "Preencha todos os campos"
+    email = entry_email.get()
 
-    usuarios.append({
-        "nome": nome,
-        "email": email,
-        "senha": senha
-    })
+    senha = entry_senha.get()
 
-    return True, "Cadastro realizado com sucesso"
+    cursor.execute("""
+    SELECT nome
+    FROM usuarios
+    WHERE email=? AND senha=?
+    """, (email, senha))
 
+    usuario = cursor.fetchone()
 
-def fazer_login(email, senha):
+    if usuario:
 
-    for usuario in usuarios:
+        mostrar_dashboard(usuario[0])
 
-        if usuario["email"] == email and usuario["senha"] == senha:
-            return True, usuario["nome"]
+    else:
 
-    return False, "Email ou senha incorretos"
+        msg_login.config(
+            text="❌ Email ou senha incorretos",
+            fg=vermelho
+        )
 
+# ================= EXCLUIR CONTA =================
 
-def redefinir_senha(email, nova_senha):
+def excluir_conta():
 
-    if not email or not nova_senha:
-        return False, "Preencha todos os campos"
+    email = entry_email.get()
 
-    for usuario in usuarios:
+    senha = entry_senha.get()
 
-        if usuario["email"] == email:
-            usuario["senha"] = nova_senha
-            return True, "Senha atualizada"
+    if not email or not senha:
 
-    return False, "Email não encontrado"
+        messagebox.showwarning(
+            "Aviso",
+            "Digite email e senha"
+        )
 
+        return
 
-# ================= TRANSAÇÕES =================
+    cursor.execute("""
+    SELECT id
+    FROM usuarios
+    WHERE email=? AND senha=?
+    """, (email, senha))
 
-def adicionar_transacao(tipo, valor, descricao):
+    usuario = cursor.fetchone()
+
+    if usuario:
+
+        resposta = messagebox.askyesno(
+            "Confirmar",
+            "Deseja realmente excluir a conta?"
+        )
+
+        if resposta:
+
+            cursor.execute("""
+            DELETE FROM usuarios
+            WHERE email=? AND senha=?
+            """, (email, senha))
+
+            conexao.commit()
+
+            messagebox.showinfo(
+                "Sucesso",
+                "Conta excluída com sucesso!"
+            )
+
+    else:
+
+        messagebox.showerror(
+            "Erro",
+            "Email ou senha incorretos"
+        )
+
+# ================= ADICIONAR =================
+
+def adicionar_transacao(tipo):
 
     try:
-        valor = float(valor)
 
-        if descricao == "":
-            return False, "Descrição inválida"
+        valor = float(entry_valor.get())
 
-        transacoes.append({
-            "tipo": tipo,
-            "valor": valor,
-            "desc": descricao,
-            "data": datetime.now()
-        })
+        descricao = entry_desc.get()
 
-        return True, "Transação adicionada"
+        if not descricao:
+
+            raise ValueError
+
+        data_atual = datetime.now()
+
+        cursor.execute("""
+        INSERT INTO transacoes(tipo,valor,descricao,data)
+        VALUES(?,?,?,?)
+        """, (
+            tipo,
+            valor,
+            descricao,
+            data_atual.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+        ))
+
+        conexao.commit()
+
+        carregar_transacoes()
+
+        entry_desc.delete(0, END)
+
+        entry_valor.delete(0, END)
+
+        atualizar_interface()
 
     except:
-        return False, "Valor inválido"
 
+        messagebox.showerror(
+            "Erro",
+            "Digite valores válidos"
+        )
 
-def excluir_transacao(indice):
+# ================= EXCLUIR =================
+
+def excluir_selecionado():
 
     try:
-        item = transacoes.pop(indice)
 
-        lixeira.append(item)
+        indice = lista_transacoes.curselection()[0]
 
-        return True
+        cursor.execute("""
+        SELECT id
+        FROM transacoes
+        ORDER BY data DESC
+        LIMIT 1 OFFSET ?
+        """, (indice,))
+
+        resultado = cursor.fetchone()
+
+        if resultado:
+
+            cursor.execute("""
+            DELETE FROM transacoes
+            WHERE id=?
+            """, (resultado[0],))
+
+            conexao.commit()
+
+        carregar_transacoes()
+
+        atualizar_interface()
 
     except:
-        return False
 
+        messagebox.showwarning(
+            "Aviso",
+            "Selecione uma transação"
+        )
 
-def recuperar_transacao():
+# ================= INTERFACE =================
 
-    if lixeira:
+def atualizar_interface():
 
-        item = lixeira.pop()
+    lista_transacoes.delete(0, END)
 
-        transacoes.append(item)
+    receitas = 0
 
-        return True
+    despesas = 0
 
-    return False
+    for t in transacoes:
 
+        if t["tipo"] == "Receita":
 
-# ================= ESTATÍSTICAS =================
+            receitas += t["valor"]
 
-def calcular_saldo():
+            emoji = "💰"
 
-    receitas = sum(
-        t["valor"]
-        for t in transacoes
-        if t["tipo"] == "Receita"
-    )
+        else:
 
-    despesas = sum(
-        t["valor"]
-        for t in transacoes
-        if t["tipo"] == "Despesa"
-    )
+            despesas += t["valor"]
+
+            emoji = "💸"
+e
+        data_formatada = t["data"].strftime(
+            "%d/%m/%Y %H:%M"
+        )
+
+        texto = (
+            f"{data_formatada} | "
+            f"{emoji} {t['desc']} | "
+            f"R$ {t['valor']:.2f}"
+        )
+
+        lista_transacoes.insert(END, texto)
 
     saldo = receitas - despesas
 
-    return receitas, despesas, saldo
+    lbl_saldo.config(
+        text=f"Saldo: R$ {saldo:.2f}",
+        fg=verde if saldo >= 0 else vermelho
+    )
