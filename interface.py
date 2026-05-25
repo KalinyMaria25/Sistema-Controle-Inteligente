@@ -2,6 +2,7 @@ from tkinter import *
 
 from logica import *
 
+
 # ================= CORES =================
 
 preto = "#121212"
