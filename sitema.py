@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import sqlite3
 import re
 
-# ================= BANCO =================
+# ================= BANCO ================= 
 
 conexao = sqlite3.connect("financeiro.db")
 cursor = conexao.cursor()
