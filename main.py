@@ -1,19 +1,23 @@
-from interface import janela
-from dados import conexao
+if __name__ == "__main__":
 
-# ================= FECHAR =================
+    # ================= INICIALIZAÇÃO =================
+    janela = Tk()
+    janela.title("Sistema Financeiro")
+    janela.geometry("1100x750")
+    janela.config(bg=preto)
 
-def fechar_sistema():
+    # ================= INICIAR NA TELA DE LOGIN =================
+    frame_login.pack(expand=True)
 
-    conexao.close()
+    # ================= FECHAMENTO SEGURO =================
+    def fechar_sistema():
+        try:
+            conexao.close()
+        except:
+            pass
+        janela.destroy()
 
-    janela.destroy()
+    janela.protocol("WM_DELETE_WINDOW", fechar_sistema)
 
-janela.protocol(
-    "WM_DELETE_WINDOW",
-    fechar_sistema
-)
-
-# ================= EXECUTAR =================
-
-janela.mainloop()
+    # ================= INICIAR LOOP =================
+    janela.mainloop()
