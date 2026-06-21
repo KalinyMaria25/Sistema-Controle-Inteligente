@@ -4,9 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime, timedelta
 import sqlite3
-import re
 
-# ================= BANCO ================= 
+# ================= BANCO =================
 
 conexao = sqlite3.connect("financeiro.db")
 cursor = conexao.cursor()
@@ -43,14 +42,6 @@ azul = "#3b82f6"
 cinza = "#1f2937"
 laranja = "#f97316"
 roxo = "#8b5cf6"
-
-# ================= VALIDAÇÃO DE EMAIL =================
-
-def email_valido(email):
-
-    padrao = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
-
-    return re.match(padrao, email)
 
 # ================= LISTAS =================
 
@@ -121,23 +112,14 @@ def mostrar_dashboard(nome):
 
 def cadastrar():
 
-    nome = entry_nome.get().strip()
-    email = entry_email_cad.get().strip().lower()
+    nome = entry_nome.get()
+    email = entry_email_cad.get()
     senha = entry_senha_cad.get()
 
     if not nome or not email or not senha:
 
         msg_cadastro.config(
             text="❌ Preencha todos os campos",
-            fg=vermelho
-        )
-
-        return
-
-    if not email_valido(email):
-
-        msg_cadastro.config(
-            text="❌ Digite um Gmail válido",
             fg=vermelho
         )
 
@@ -157,31 +139,19 @@ def cadastrar():
             fg=verde
         )
 
-        entry_nome.delete(0, END)
-        entry_email_cad.delete(0, END)
-        entry_senha_cad.delete(0, END)
-
     except:
 
         msg_cadastro.config(
             text="❌ Email já cadastrado",
             fg=vermelho
         )
+
 # ================= LOGIN =================
 
 def login():
 
-    email = entry_email.get().strip().lower()
+    email = entry_email.get()
     senha = entry_senha.get()
-
-    if not email_valido(email):
-
-        msg_login.config(
-            text="❌ Digite um Gmail válido",
-            fg=vermelho
-        )
-
-        return
 
     cursor.execute("""
     SELECT nome
@@ -201,6 +171,7 @@ def login():
             text="❌ Email ou senha incorretos",
             fg=vermelho
         )
+
 # ================= EXCLUIR CONTA =================
 
 def excluir_conta():
@@ -338,40 +309,63 @@ def excluir_selecionado():
             "Aviso",
             "Selecione uma transação"
         )
+# ================= FUNÇÃO ALERTA =================
+def alerta_usuario(receitas, despesas):
 
+    if receitas == 0 and despesas > 0:
+        return (
+            "🚨 ALERTA CRÍTICO\n\n"
+            "Você só possui despesas e nenhuma receita.\n"
+            "Situação de risco financeiro!"
+        ), vermelho
+
+    percentual = (despesas / receitas) * 100 if receitas > 0 else 0
+
+    if receitas > 0 and percentual >= 80:
+        return (
+            "⚠ CUIDADO!\n\n"
+            "Suas despesas estão muito altas.\n"
+            "Você está gastando a maior parte da sua renda."
+        ), laranja
+
+    elif receitas > despesas:
+        return (
+            "⚖ FINANÇAS ESTÁVEIS\n\n"
+            "Você está com bom controle financeiro."
+        ), verde
+
+    elif receitas > despesas * 2:
+        return (
+            "💰 EXCELENTE!\n\n"
+            "Sua receita é muito maior que suas despesas."
+        ), azul
+
+    else:
+        return (
+            "🚨 ATENÇÃO!\n\n"
+            "Suas despesas estão maiores que suas receitas."
+        ), vermelho
 # ================= ESTATÍSTICAS =================
 
 def atualizar_estatisticas():
 
     receitas = [
-        t for t in transacoes
+        t["valor"]
+        for t in transacoes
         if t["tipo"] == "Receita"
     ]
 
     despesas = [
-        t for t in transacoes
+        t["valor"]
+        for t in transacoes
         if t["tipo"] == "Despesa"
     ]
 
-    maior_receita = max(
-        [t["valor"] for t in receitas],
-        default=0
-    )
+    maior_receita = max(receitas) if receitas else 0
+    menor_receita = min(receitas) if receitas else 0
 
-    menor_receita = min(
-        [t["valor"] for t in receitas],
-        default=0
-    )
-
-    maior_despesa = max(
-        [t["valor"] for t in despesas],
-        default=0
-    )
-
-    menor_despesa = min(
-        [t["valor"] for t in despesas],
-        default=0
-    )
+    maior_despesa = max(despesas) if despesas else 0
+    menor_despesa = min(despesas) if despesas else 0
 
     lbl_maior_receita.config(
         text=f"💰 Maior Receita: R$ {maior_receita:.2f}"
@@ -389,31 +383,6 @@ def atualizar_estatisticas():
         text=f"🧾 Menor Despesa: R$ {menor_despesa:.2f}"
     )
 
-    if despesas:
-
-        despesa_maior = max(
-            despesas,
-            key=lambda x: x["valor"]
-        )
-
-        mensagem = (
-            
-    f"⚠ AVISO!!!! Maior gasto: {despesa_maior['desc']} "
-    f"(R$ {despesa_maior['valor']:.2f}) | "
-    f"💡 Economize hoje para conquistar seus objetivos amanhã!"
-
-        )
-        lbl_alerta_gastos.config(
-            text=mensagem,
-            fg=amarelo
-        )
-
-    else:
-
-        lbl_alerta_gastos.config(
-            text="🎉 Parabéns! Nenhuma despesa registrada até o momento.",
-            fg=verde
-        )
 # ================= INTERFACE =================
 
 def atualizar_interface():
@@ -448,11 +417,14 @@ def atualizar_interface():
         lista_transacoes.insert(END, texto)
 
     saldo = receitas - despesas
+    
 
     lbl_saldo.config(
         text=f"Saldo: R$ {saldo:.2f}",
         fg=verde if saldo >= 0 else vermelho
     )
+    msg, cor = alerta_usuario(receitas, despesas)
+    lbl_alerta.config(text=msg, fg=cor)
 
     atualizar_estatisticas()
 
@@ -696,165 +668,264 @@ def exibir_relatorios():
         ).pack(pady=6)
 
 # ================= GRÁFICO =================
-
 def gerar_grafico():
-    if not transacoes:
-        messagebox.showwarning("Aviso", "Sem dados para gerar o gráfico.")
+
+    receitas = sum(
+        t["valor"]
+        for t in transacoes
+        if t["tipo"] == "Receita"
+    )
+
+    despesas = sum(
+        t["valor"]
+        for t in transacoes
+        if t["tipo"] == "Despesa"
+    )
+
+    if receitas == 0 and despesas == 0:
+        messagebox.showwarning("Aviso", "Sem dados para gráfico")
         return
 
-    # Separar receitas e despesas
-    receitas = [t for t in transacoes if t["tipo"] == "Receita"]
-    despesas = [t for t in transacoes if t["tipo"] == "Despesa"]
+    # 🔥 evita gráfico antigo
+    plt.close("all")
 
-    total_receitas = sum(t["valor"] for t in receitas)
-    total_despesas = sum(t["valor"] for t in despesas)
-    total_geral = total_receitas + total_despesas
+    # ===== CASO SEM RECEITA =====
+    if receitas == 0 and despesas > 0:
 
-    # Obter estatísticas para o texto descritivo
-    maior_receita = max([t["valor"] for t in receitas]) if receitas else 0
-    maior_despesa = max([t["valor"] for t in despesas]) if despesas else 0
-
-    # Agrupar dados para o gráfico
-    valores_grafico = []
-    labels_grafico = []
-    cores_grafico = []
-
-    if total_receitas > 0:
-        valores_grafico.append(total_receitas)
-        labels_grafico.append(f"Receitas: R$ {total_receitas:.2f}")
-        cores_grafico.append(verde)
-
-    # Agrupar despesas repetidas
-    despesas_agrupadas = {}
-    for d in despesas:
-        despesas_agrupadas[d["desc"]] = despesas_agrupadas.get(d["desc"], 0) + d["valor"]
-
-    for desc, valor in despesas_agrupadas.items():
-        valores_grafico.append(valor)
-        labels_grafico.append(f"{desc}: R$ {valor:.2f}")
-        cores_grafico.append(vermelho)
-
-    # Definir mensagem emotiva/motivacional
-    if total_receitas > total_despesas:
-        mensagem_emotiva = (
-            "Incrível! Você está cuidando muito bem do seu dinheiro.\n"
-            "Ver suas receitas maiores que as despesas traz uma paz de espírito enorme, não é?\n"
-            "Continue firme investindo no seu futuro e colhendo bons frutos! 🌱✨"
+        mensagem = (
+            "🚨 ALERTA CRÍTICO!\n\n"
+            "Você não possui receitas cadastradas\n"
+            "mas já possui despesas.\n"
+            "Isso gera prejuízo automático."
         )
-        cor_msg = verde
-    elif total_despesas > total_receitas:
-        mensagem_emotiva = (
-            "❤️ Não desanime! Olhar para os gastos pode ser difícil, mas você é forte.\n"
-            "Cada pequena escolha de economia hoje aproxima você dos seus maiores sonhos.\n"
-            "Respire fundo, reorganize os passos e assuma o controle da sua história! 🚀💪"
+        cor_msg = vermelho
+
+    # ===== ALERTA 80% =====
+    elif receitas > 0 and despesas >= receitas * 0.8 and despesas < receitas:
+
+        mensagem = (
+            "⚠ ALERTA FINANCEIRO\n\n"
+            "Suas despesas já consomem mais de 80% da sua receita."
         )
         cor_msg = laranja
-    else:
-        mensagem_emotiva = (
-            "⚖️ Tudo equilibrado por aqui! O orçamento está empatado.\n"
-            "Que tal o desafio de tentar poupar um pouquinho a mais no próximo mês?\n"
-            "Você tem total capacidade de fazer seu dinheiro render mais! 🏆"
+
+    # ===== RECEITA MAIOR =====
+    elif receitas > despesas:
+
+        mensagem = (
+            "✅ PARABÉNS!\n\n"
+            "Sua receita está maior que suas despesas."
+        )
+        cor_msg = verde
+
+    # ===== EQUILÍBRIO =====
+    elif receitas == despesas:
+
+        mensagem = (
+            "⚖ EQUILÍBRIO FINANCEIRO\n\n"
+            "Receitas e despesas estão iguais."
         )
         cor_msg = amarelo
 
-    # Criar a Janela do Gráfico
+    # ===== DESPESA MAIOR =====
+    else:
+
+        mensagem = (
+            "🚨 ATENÇÃO!\n\n"
+            "Suas despesas são maiores que suas receitas."
+        )
+        cor_msg = vermelho
+
+    # ===== JANELA DO GRÁFICO =====
     top = Toplevel()
-    top.title("📊 Gráfico Financeiro Detalhado")
-    top.geometry("850x850") # Aumentamos um pouco o tamanho da janela para as porcentagens externas
+    top.title("📊 Gráfico Financeiro")
+    top.geometry("650x700")
+    top.config(bg="#111827")
+
+    # ===== GRÁFICO =====
+    fig, ax = plt.subplots(figsize=(5, 5))
+    fig.patch.set_facecolor("#111827")
+    ax.set_facecolor("#111827")
+
+    ax.pie(
+        [receitas, despesas],
+        labels=["Receitas", "Despesas"],
+        colors=[verde, vermelho],
+        autopct="%1.1f%%",
+        textprops={"color": "white"}
+    )
+
+    ax.set_title("Controle Financeiro", color="white")
+
+    canvas = FigureCanvasTkAgg(fig, master=top)
+    canvas.draw()
+    canvas.get_tk_widget().pack(pady=10)
+
+    plt.close(fig)
+
+    # ===== MENSAGEM ABAIXO DO GRÁFICO =====
+    frame_msg = Frame(top, bg="#1f2937", bd=2, relief="ridge")
+    frame_msg.pack(fill=X, padx=20, pady=15)
+
+    Label(
+        frame_msg,
+        text=mensagem,
+        bg="#1f2937",
+        fg=cor_msg,
+        font=("Arial", 13, "bold"),
+        justify="center",
+        padx=15,
+        pady=15
+    ).pack(fill=X)
+
+    # ===== JANELA DO GRÁFICO =====
+    top = Toplevel()
+    top.title("📊 Gráfico Financeiro")
+    top.geometry("650x700")
+    top.config(bg="#111827")
+
+    # ===== GRÁFICO =====
+    fig, ax = plt.subplots(figsize=(5, 5))
+    fig.patch.set_facecolor("#111827")
+    ax.set_facecolor("#111827")
+
+    ax.pie(
+        [receitas, despesas],
+        labels=["Receitas", "Despesas"],
+        colors=[verde, vermelho],
+        autopct="%1.1f%%",
+        textprops={"color": "white"}
+    )
+
+    ax.set_title("Controle Financeiro", color="white")
+
+    canvas = FigureCanvasTkAgg(fig, master=top)
+    canvas.draw()
+    canvas.get_tk_widget().pack(pady=10)
+
+    # FECHA FIGURA (IMPORTANTE)
+    plt.close(fig)
+
+    # ===== MENSAGEM NO GRÁFICO =====
+    frame_msg = Frame(top, bg="#1f2937", bd=2, relief="ridge")
+    frame_msg.pack(fill=X, padx=20, pady=15)
+
+    Label(
+        frame_msg,
+        text=mensagem,
+        bg="#1f2937",
+        fg=cor_msg,
+        font=("Arial", 13, "bold"),
+        justify="center",
+        padx=15,
+        pady=15
+    ).pack(fill=X)
+    top = Toplevel()
+
+    top.title("📊 Gráfico Financeiro")
+
+    top.geometry("650x700")
+
     top.config(bg="#111827")
 
     Label(
         top,
-        text="📊 DISTRIBUIÇÃO DOS SEUS GASTOS",
+        text="📊 RESUMO FINANCEIRO",
         bg="#111827",
         fg=amarelo,
-        font=("Arial", 18, "bold")
-    ).pack(pady=15)
+        font=("Arial",22,"bold")
+    ).pack(pady=20)
 
-    # Gerar Gráfico com Matplotlib
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(5,5))
+
     fig.patch.set_facecolor("#111827")
+
     ax.set_facecolor("#111827")
 
-    if valores_grafico:
-        # Criamos o gráfico jogando os valores para fora e rotacionando-os
-        wedges, texts, autotexts = ax.pie(
-            valores_grafico,
-            labels=None, 
-            colors=cores_grafico,
-            autopct="%1.1f%%",
-            pctdistance=1.2,            # 1.2 joga as porcentagens para FORA do círculo da pizza
-            startangle=140,
-            rotatelabels=True,          # Gira os textos seguindo a curva do gráfico para não embolar
-            textprops={"color": "white", "fontsize": 9, "fontweight": "bold"}
-        )
-        
-        # Ajusta as linhas guias das porcentagens para ficarem legíveis no fundo escuro
-        for autotext in autotexts:
-            autotext.set_color("#cbd5e1") # Tom cinza claro super elegante e legível
-        
-        # Cria a legenda lateral de apoio
-        legenda = ax.legend(
-            wedges, 
-            labels_grafico,
-            title="Categorias",
-            title_fontsize=11,
-            loc="center left",
-            bbox_to_anchor=(1.3, 0, 0.5, 1), # Afastamos um pouco a legenda para dar espaço aos números externos
-            facecolor="#1f2937",
-            edgecolor="#374151",
-            labelcolor="white"
-        )
-        
-        legenda.get_title().set_color(amarelo)
+    ax.pie(
+        [receitas, despesas],
+        labels=["Receitas", "Despesas"],
+        colors=[verde, vermelho],
+        autopct="%1.1f%%",
+        textprops={
+            "color":"white",
+            "fontsize":12,
+            "fontweight":"bold"
+        }
+    )
 
-    ax.set_title("Divisão de Receitas vs Despesas", color="white", fontsize=12, pad=10)
+    ax.set_title(
+        "Controle Financeiro",
+        color="white",
+        fontsize=16
+    )
 
-    # O subplots_adjust cria uma margem de respiro perfeita para os números externos não sumirem nas bordas
-    plt.subplots_adjust(left=0.05, right=0.65, top=0.85, bottom=0.15)
+    canvas = FigureCanvasTkAgg(
+        fig,
+        master=top
+    )
 
-    canvas = FigureCanvasTkAgg(fig, master=top)
     canvas.draw()
-    canvas.get_tk_widget().pack(pady=5)
 
-    # Painel de Informações (Maiores Valores)
-    frame_info = Frame(top, bg="#1f2937", bd=2, relief="ridge")
-    frame_info.pack(fill=X, padx=30, pady=10)
+    canvas.get_tk_widget().pack(
+        pady=10
+    )
+
+    saldo = receitas - despesas
+
+    frame_info = Frame(
+        top,
+        bg="#1f2937",
+        bd=3,
+        relief="ridge"
+    )
+
+    frame_info.pack(
+        fill=X,
+        padx=25,
+        pady=20
+    )
 
     Label(
         frame_info,
-        text=f"📥 Maior Receita Única: R$ {maior_receita:.2f}  |  📤 Maior Despesa Única: R$ {maior_despesa:.2f}",
+        text=f"💰 Receitas: R$ {receitas:.2f}",
         bg="#1f2937",
-        fg=branco,
-        font=("Arial", 11, "bold")
+        fg=verde,
+        font=("Arial",14,"bold")
+    ).pack(pady=8)
+
+    Label(
+        frame_info,
+        text=f"💸 Despesas: R$ {despesas:.2f}",
+        bg="#1f2937",
+        fg=vermelho,
+        font=("Arial",14,"bold")
+    ).pack(pady=8)
+
+    Label(
+        frame_info,
+        text=f"📌 Saldo: R$ {saldo:.2f}",
+        bg="#1f2937",
+        fg="#38bdf8",
+        font=("Arial",16,"bold")
     ).pack(pady=10)
 
     Label(
-        frame_info,
-        text=f"📌 Saldo Geral: R$ {(total_receitas - total_despesas):.2f}",
-        bg="#1f2937",
-        fg="#38bdf8",
-        font=("Arial", 13, "bold")
-    ).pack(pady=5)
-
-    # Mensagem Emotiva/Motivacional no rodapé
-    lbl_msg_emotiva = Label(
         top,
-        text=mensagem_emotiva,
+        text=mensagem,
         bg="#111827",
         fg=cor_msg,
-        font=("Arial", 12, "italic", "bold"),
-        justify="center",
-        wraplength=700
-    )
-    lbl_msg_emotiva.pack(pady=15)
+        font=("Arial",14,"bold"),
+        justify="center"
+    ).pack(pady=15)
+
 # ================= JANELA =================
 
 janela = Tk()
 
 janela.title("Sistema Financeiro")
 
-janela.geometry("1110x950")
+janela.geometry("1100x750")
 
 janela.config(bg=preto)
 
@@ -869,7 +940,7 @@ frame_login.pack(expand=True)
 
 Label(
     frame_login,
-    text="💰 Controle Inteligente",
+    text="💰 Controle Financeiro",
     bg=preto,
     fg=verde,
     font=("Arial",24,"bold")
@@ -1086,6 +1157,17 @@ entry_valor = Entry(
 entry_valor.grid(row=0,column=3,padx=10)
 
 # LISTA
+lbl_alerta = Label(
+    frame_dashboard,
+    text="",
+    bg=preto,
+    fg=verde,
+    font=("Arial", 12, "bold"),
+    justify="center",
+    wraplength=800
+)
+
+lbl_alerta.pack(pady=10)
 
 lista_transacoes = Listbox(
     frame_dashboard,
@@ -1152,17 +1234,6 @@ lbl_menor_despesa = Label(
 )
 
 lbl_menor_despesa.pack(pady=3)
-lbl_alerta_gastos = Label(
-    frame_stats,
-    text="",
-    bg="#1e1e1e",
-    fg=amarelo,
-    font=("Arial",11,"bold"),
-    wraplength=900,
-    justify="center"
-)
-
-lbl_alerta_gastos.pack(pady=8)
 
 # BOTÕES
 
@@ -1222,6 +1293,9 @@ Button(
     text="Sair",
     bg=cinza,
     fg=branco,
+    Recursos importantes da Programação Orientada a Objetos.
+    Permitem criar sistemas mais organizados e reutilizáveis.
+    Definem regras que outras classes devem seguir.
     width=20,
     command=mostrar_login
 ).pack(pady=20)
